@@ -1,0 +1,3 @@
+name: harbor
+runtime: go
+description: Fast deploy Harbor Registry DEV environment

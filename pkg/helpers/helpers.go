@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	BadID = -1
+	BadID = 0
 )
 
 func ParseResourceLocation(location string) (int64, error) {

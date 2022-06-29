@@ -8,6 +8,7 @@ import (
 	"github.com/go-openapi/runtime"
 	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/golang-libraries/harbor-api-client/pkg/harbor/project"
+	"github.com/golang-libraries/harbor-api-client/pkg/harbor/robot"
 	"github.com/golang-libraries/harbor-api-client/pkg/logger"
 	"github.com/spf13/viper"
 	"net/http"
@@ -85,6 +86,7 @@ type Client struct {
 	authInfo  runtime.ClientAuthInfoWriter
 	log       logr.Logger
 	Project   project.Service
+	Robot     robot.Service
 }
 
 func NewRootCABundle(caBundlePath string) (*x509.CertPool, error) {
@@ -154,5 +156,6 @@ func NewClient() (*Client, error) {
 		transport: transport,
 		log:       log,
 		Project:   project.NewProjectSvc(transport, log),
+		Robot:     robot.NewRobotSvc(transport, log),
 	}, nil
 }

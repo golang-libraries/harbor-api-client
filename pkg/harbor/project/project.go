@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	LoggerName = "Project"
+	ServiceName = "Project"
 )
 
 type ProjectReqOpt func(req *models.ProjectReq) error
@@ -38,8 +38,8 @@ type Service interface {
 	Update(ctx context.Context, nameOrID string, opts ...ProjectReqOpt) error
 	List(ctx context.Context, opts ...OptListProjects) ([]*models.Project, error)
 	Head(ctx context.Context, name string) (bool, error)
-	Log(name string) ([]*models.AuditLog, error)
-	GetScanner(nameOrID string) (*models.ScannerRegistration, error)
+	Log(ctx context.Context, projectName string) ([]*models.AuditLog, error)
+	GetScanner(ctx context.Context, nameOrID string) (*models.ScannerRegistration, error)
 }
 
 type ServiceImpl struct {
@@ -49,38 +49,40 @@ type ServiceImpl struct {
 
 func NewProjectSvc(transport *client.Runtime, log logr.Logger) *ServiceImpl {
 	return &ServiceImpl{
-		log:     log.WithName(LoggerName),
+		log:     log.WithName(ServiceName),
 		project: project.New(transport, strfmt.Default),
 	}
 }
 
 func (svc *ServiceImpl) Get(ctx context.Context, nameOrID string) (*models.Project, error) {
+	const method harborErr.Method = "Get()"
 	var params = &project.GetProjectParams{
 		ProjectNameOrID: nameOrID,
 		Context:         ctx,
 	}
-
 	svc.log.Info(fmt.Sprintf("Get harbor project: %s", nameOrID))
 	response, err := svc.project.GetProject(params, nil)
 	if err != nil {
-		return nil, err
+		return nil, catchProjectErr(err, method)
 	}
 	return response.GetPayload(), nil
 }
 
 func (svc *ServiceImpl) Delete(ctx context.Context, nameOrID string) error {
+	const method = "Delete()"
 	params := &project.DeleteProjectParams{
 		Context:         ctx,
 		ProjectNameOrID: nameOrID,
 	}
 	_, err := svc.project.DeleteProject(params, nil)
 	if err != nil {
-		return err
+		return catchProjectErr(err, method)
 	}
 	return nil
 }
 
 func (svc *ServiceImpl) Create(ctx context.Context, name string, opts ...ProjectReqOpt) (int64, error) {
+	const method = "Create"
 	req := &models.ProjectReq{
 		ProjectName: name,
 	}
@@ -95,11 +97,11 @@ func (svc *ServiceImpl) Create(ctx context.Context, name string, opts ...Project
 	}
 	resp, err := svc.project.CreateProject(params, nil)
 	if err != nil {
-		return helpers.BadID, err
+		return helpers.BadID, catchProjectErr(err, method)
 	}
 	id, err := helpers.ParseResourceLocation(resp.Location)
 	if err != nil {
-		return helpers.BadID, err
+		return helpers.BadID, catchProjectErr(err, method)
 	}
 	return id, nil
 }
@@ -168,7 +170,6 @@ func OptListProjectSort(sort string) OptListProjects {
 		return nil
 	}
 }
-
 func (svc *ServiceImpl) List(ctx context.Context, opts ...OptListProjects) ([]*models.Project, error) {
 	params := &project.ListProjectsParams{
 		Context: ctx,
@@ -186,18 +187,22 @@ func (svc *ServiceImpl) List(ctx context.Context, opts ...OptListProjects) ([]*m
 }
 
 func (svc *ServiceImpl) Head(ctx context.Context, name string) (bool, error) {
-	const method harborErr.Method = "Project.Head"
+	const method harborErr.Method = "Head()"
 	resp, err := svc.project.HeadProject(&project.HeadProjectParams{Context: ctx, ProjectName: name}, nil)
 	if err != nil {
+		if IsNotFound(err) {
+			return false, nil
+		}
 		return false, catchProjectErr(err, method)
 	}
 	_ = resp
 	return true, nil
 }
 
-func (svc *ServiceImpl) Log(name string) ([]*models.AuditLog, error) {
+func (svc *ServiceImpl) Log(ctx context.Context, projectName string) ([]*models.AuditLog, error) {
 	params := &project.GetLogsParams{
-		ProjectName: name,
+		Context:     ctx,
+		ProjectName: projectName,
 	}
 	resp, err := svc.project.GetLogs(params, nil)
 	if err != nil {
@@ -206,7 +211,7 @@ func (svc *ServiceImpl) Log(name string) ([]*models.AuditLog, error) {
 	return resp.GetPayload(), nil
 }
 
-func (svc *ServiceImpl) GetScanner(nameOrID string) (*models.ScannerRegistration, error) {
+func (svc *ServiceImpl) GetScanner(ctx context.Context, nameOrID string) (*models.ScannerRegistration, error) {
 	params := &project.GetScannerOfProjectParams{
 		ProjectNameOrID: nameOrID,
 	}
