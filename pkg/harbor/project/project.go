@@ -107,6 +107,7 @@ func (svc *ServiceImpl) Create(ctx context.Context, name string, opts ...Project
 }
 
 func (svc *ServiceImpl) Update(ctx context.Context, nameOrID string, opts ...ProjectReqOpt) error {
+	const method = "Update()"
 	req := newProjectReq()
 	for _, opt := range opts {
 		if err := opt(req); err != nil {
@@ -120,7 +121,7 @@ func (svc *ServiceImpl) Update(ctx context.Context, nameOrID string, opts ...Pro
 	}
 	_, err := svc.project.UpdateProject(params, nil)
 	if err != nil {
-		return err
+		return catchProjectErr(err, method)
 	}
 	return nil
 }
@@ -171,6 +172,7 @@ func OptListProjectSort(sort string) OptListProjects {
 	}
 }
 func (svc *ServiceImpl) List(ctx context.Context, opts ...OptListProjects) ([]*models.Project, error) {
+	const method = "List()"
 	params := &project.ListProjectsParams{
 		Context: ctx,
 	}
@@ -181,7 +183,7 @@ func (svc *ServiceImpl) List(ctx context.Context, opts ...OptListProjects) ([]*m
 	}
 	resp, err := svc.project.ListProjects(params, nil)
 	if err != nil {
-		return nil, err
+		return nil, catchProjectErr(err, method)
 	}
 	return resp.GetPayload(), nil
 }
@@ -200,24 +202,27 @@ func (svc *ServiceImpl) Head(ctx context.Context, name string) (bool, error) {
 }
 
 func (svc *ServiceImpl) Log(ctx context.Context, projectName string) ([]*models.AuditLog, error) {
+	const method = "Log()"
 	params := &project.GetLogsParams{
 		Context:     ctx,
 		ProjectName: projectName,
 	}
 	resp, err := svc.project.GetLogs(params, nil)
 	if err != nil {
-		return nil, err
+		return nil, catchProjectErr(err, method)
 	}
 	return resp.GetPayload(), nil
 }
 
 func (svc *ServiceImpl) GetScanner(ctx context.Context, nameOrID string) (*models.ScannerRegistration, error) {
+	const method = "GetScanner()"
 	params := &project.GetScannerOfProjectParams{
 		ProjectNameOrID: nameOrID,
+		Context:         ctx,
 	}
 	resp, err := svc.project.GetScannerOfProject(params, nil)
 	if err != nil {
-		return nil, err
+		return nil, catchProjectErr(err, method)
 	}
 	return resp.GetPayload(), nil
 }
