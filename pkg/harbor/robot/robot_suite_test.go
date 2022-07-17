@@ -37,14 +37,18 @@ var _ = Describe("Test RobotAccount Svc", func() {
 	)
 
 	var (
-		robotID     int64
-		robotName   string
-		projectName string
+		robotID        int64
+		robotName      string
+		projectID      int64
+		projectName    string
+		projectRobotID int64
 	)
 	BeforeEach(func() {
-		projectName = prepareTestProject()
+		projectName, projectID = prepareTestProject()
 		robotName = genUniqueName(baseRobotName)
 		robotID = prepareTestSystemtRobot(projectName)
+		projectRobotID = prepareTestProjectRobot(projectName)
+		debugLog.Printf("Test project scope robot prepared with ID: %d\n", projectRobotID)
 
 	})
 	It("Get robot account", func() {
@@ -76,6 +80,22 @@ var _ = Describe("Test RobotAccount Svc", func() {
 		err = client.Robot.Update(ctx, robotID, robot.NewUpdateBuilder(getRobot).Description(description).Duration(robot.NeverExpires).Build())
 		Expect(err).Should(Succeed())
 	})
+	It("List robot accounts in the system scope", func() {
+		robots, err := client.Robot.List(ctx, robot.QuerySystemLevelRobot())
+		Expect(err).Should(Succeed())
+		Expect(robots).ShouldNot(BeNil())
+		for _, r := range robots {
+			debugLog.Printf("Robot name: %s, ID: %d\n", r.Name, r.ID)
+		}
+	})
+	It("List robot accounts in the project scope", func() {
+		robots, err := client.Robot.List(ctx, robot.QueryProjectLevelRobot(projectID))
+		Expect(err).Should(Succeed())
+		Expect(robots).ShouldNot(BeNil())
+		for _, r := range robots {
+			debugLog.Printf("Robot name: %s, ID: %d\n", r.Name, r.ID)
+		}
+	})
 	AfterEach(func() {
 		deleteTestRobotAccount(robotID)
 		deleteTestProject(projectName)
@@ -99,7 +119,17 @@ func prepareTestSystemtRobot(projectName string) int64 {
 	return newRobot.ID
 }
 
-func prepareTestProject() string {
+func prepareTestProjectRobot(projectName string) int64 {
+	_ = projectName
+	id, err := nanoid.Generate("abcdefg", 12)
+	robotName := fmt.Sprintf("test-robot-%s", id)
+	newRobot, err := client.Robot.Create(ctx, robotName, robot.LevelProject, robot.NewPermissionList(robot.PullAndPushPermissions(projectName)))
+	Expect(err).Should(Succeed())
+	Expect(newRobot).ShouldNot(BeNil())
+	return newRobot.ID
+}
+
+func prepareTestProject() (string, int64) {
 	id, err := nanoid.Generate("abcdefg", 12)
 	ExpectWithOffset(1, err).Should(Succeed())
 	projectName := fmt.Sprintf("test-project-%s", id)
@@ -107,7 +137,7 @@ func prepareTestProject() string {
 	Expect(err).Should(Succeed())
 	Expect(id).ShouldNot(BeZero())
 	debugLog.Printf("Test project prepared, name: %s,  ID: %d", projectName, projectId)
-	return projectName
+	return projectName, projectId
 }
 
 func deleteTestProject(nameOrID string) {

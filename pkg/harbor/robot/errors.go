@@ -7,6 +7,7 @@ import (
 
 var (
 	ErrMultiplayPermissions = errors.New("multiplay permissions for project level robot account")
+	ErrRobotNotFound        = errors.New("robot account with such name isn't found")
 )
 
 func catchRobotErr(err error, method harborErr.Method) harborErr.Error {

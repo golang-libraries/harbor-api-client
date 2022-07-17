@@ -2,6 +2,7 @@ package robot
 
 import (
 	"context"
+	"fmt"
 	"github.com/go-logr/logr"
 	"github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
@@ -25,19 +26,6 @@ const (
 //Effect: , Resource: scan, Action: createEff
 
 const (
-	ActionPull   = "pull"
-	ActionPush   = "push"
-	ActionDelete = "delete"
-	ActionRead   = "read"
-	ActionCreate = "create"
-
-	LevelProject = "project"
-	LevelSystem  = "system"
-
-	ResourceRepository = "repository"
-	ResourceArtifact   = "artifact"
-	ResourceTag        = "tag"
-
 	ScopeAllProjects       = "*"
 	NeverExpires     int64 = -1
 )
@@ -56,49 +44,6 @@ func ExpiresAfterMonths(months int64) int64 {
 
 func ExpiresNever() int64 {
 	return NeverExpires
-}
-
-func AccessTagCreate() *models.Access {
-	return &models.Access{
-		Action:   ActionCreate,
-		Resource: ResourceTag,
-	}
-}
-
-func AccessTagDelete() *models.Access {
-	return &models.Access{
-		Action:   ActionDelete,
-		Resource: ResourceTag,
-	}
-}
-
-func AccessArtifactDelete() *models.Access {
-	return &models.Access{
-		Action:   ActionDelete,
-		Resource: ResourceArtifact,
-	}
-}
-
-func AccessRepositoryPull() *models.Access {
-	return &models.Access{
-		Action:   ActionPull,
-		Resource: ResourceRepository,
-	}
-}
-
-func AccessRepositoryPush() *models.Access {
-	return &models.Access{
-		Action:   ActionPush,
-		Resource: ResourceRepository,
-	}
-}
-
-func NewPermission(projectName string, access []*models.Access) *models.RobotPermission {
-	return &models.RobotPermission{
-		Access:    access,
-		Kind:      LevelProject,
-		Namespace: projectName,
-	}
 }
 
 func NewPermissionList(permissions ...*models.RobotPermission) []*models.RobotPermission {
@@ -251,6 +196,27 @@ func (svc *ServiceImpl) List(ctx context.Context, query string, opts ...ListOpt)
 		return nil, catchRobotErr(err, method)
 	}
 	return resp.GetPayload(), nil
+}
+
+func QueryProjectLevelRobot(projectID int64) string {
+	return fmt.Sprintf("ProjectID=%d,Level=%s", projectID, LevelProject)
+}
+func QuerySystemLevelRobot() string {
+	return fmt.Sprintf("Level=%s", LevelSystem)
+}
+
+func (svc *ServiceImpl) Find(ctx context.Context, robotName, query string) (*models.Robot, error) {
+	const method = "Find"
+	robots, err := svc.List(ctx, query)
+	if err != nil {
+		return nil, catchRobotErr(err, method)
+	}
+	for _, r := range robots {
+		if r.Name == robotName {
+			return r, nil
+		}
+	}
+	return nil, catchRobotErr(ErrRobotNotFound, method)
 
 }
 
